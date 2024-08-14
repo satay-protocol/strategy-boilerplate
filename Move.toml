@@ -1,0 +1,19 @@
+[package]
+name = "ExampleStrategy"
+version = "1.0.0"
+authors = []
+
+[addresses]
+example_strategy = "0x0"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.Satay]
+local = "./satay_interface"
+
+[dev-dependencies]
