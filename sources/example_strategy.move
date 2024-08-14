@@ -3,7 +3,6 @@ module example_strategy::example_strategy {
     use std::signer;
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::fungible_asset::{Self, FungibleAsset, FungibleStore, Metadata};
-    use aptos_framework::object;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
 
@@ -23,16 +22,14 @@ module example_strategy::example_strategy {
 
     const SEED_STRATEGY: vector<u8> = b"example_strategy";
 
-    // initialize our strategy with the vault and the base asset
+    // Initialize the strategy with the vault and the base asset
     public entry fun initialize(
         manager: &signer,
         vault: Object<Vault>,
         asset: Object<Metadata>
     ) {
-        // Ensure this function is only called once
         assert!(!exists<ExampleStrategy>(signer::address_of(manager)), 0);
 
-        // Create resource account for the strategy
         let (strategy_signer, strategy_cap) = account::create_resource_account(manager, SEED_STRATEGY);
         let base_strategy = strategy::create<StrategyWitness>(asset, StrategyWitness {});
 
@@ -43,12 +40,12 @@ module example_strategy::example_strategy {
         move_to(&strategy_signer, example_strategy);
     }
 
-    // deposit the base asset into the vault, and then issue the shares to the signer.
+    // Deposit the base asset into the vault and issue the shares to the signer.
     public entry fun deposit(
         account: &signer,
-        amount: u64,
-        strategy_address: address
+        amount: u64
     ) acquires ExampleStrategy {
+        let strategy_address = strategy_address();
         let strategy = borrow_global<ExampleStrategy>(strategy_address);
         let account_address = signer::address_of(account);
         let user_store = primary_fungible_store::ensure_primary_store_exists(
@@ -56,33 +53,32 @@ module example_strategy::example_strategy {
             strategy::base_metadata(strategy.base_strategy)
         );
 
-        let base_asset = deposit_(account, user_store, amount, strategy_address);
+        let base_asset = deposit_(account, user_store, amount);
         primary_fungible_store::deposit(account_address, base_asset);
     }
 
     public fun deposit_(
         account: &signer,
         store: Object<FungibleStore>,
-        amount: u64,
-        strategy_address: address
+        amount: u64
     ): FungibleAsset acquires ExampleStrategy {
+        let strategy_address = strategy_address();
         let strategy = borrow_global<ExampleStrategy>(strategy_address);
 
         let base_asset = fungible_asset::withdraw(account, store, amount);
         let shares_asset = strategy::issue(strategy.base_strategy, &base_asset, &StrategyWitness {});
 
-        // Implement the logic for interacting with the yield source
-        // Example: deploy base_asset into a lending pool, stake it, etc.
         deploy_to_yield_source(base_asset);
 
         shares_asset
     }
 
+    // Withdraw the base asset by redeeming the strategy shares
     public fun withdraw(
         account: &signer,
-        amount: u64,
-        strategy_address: address
+        amount: u64
     ) acquires ExampleStrategy {
+        let strategy_address = strategy_address();
         let strategy = borrow_global<ExampleStrategy>(strategy_address);
         let account_address = signer::address_of(account);
         let store = primary_fungible_store::ensure_primary_store_exists(
@@ -90,16 +86,16 @@ module example_strategy::example_strategy {
             strategy::shares_metadata(strategy.base_strategy)
         );
 
-        let asset = withdraw_internal(account, store, amount, strategy_address);
+        let asset = withdraw_internal(account, store, amount);
         fungible_asset::deposit(store, asset);
     }
 
     fun withdraw_internal(
         account: &signer,
         store: Object<FungibleStore>,
-        amount: u64,
-        strategy_address: address
+        amount: u64
     ): FungibleAsset acquires ExampleStrategy {
+        let strategy_address = strategy_address();
         let strategy = borrow_global<ExampleStrategy>(strategy_address);
         assert!(
             fungible_asset::store_metadata(store) == strategy::shares_metadata(strategy.base_strategy),
@@ -109,21 +105,36 @@ module example_strategy::example_strategy {
         let shares_asset = fungible_asset::withdraw(account, store, amount);
         let withdraw_amount = strategy::redeem(strategy.base_strategy, shares_asset, &StrategyWitness {});
 
-        // Implement logic to check and withdraw from the yield source
-        // If sufficient funds are in the strategy store, withdraw directly
-        // Otherwise, handle withdrawals from yield sources
-
         if (!has_sufficient_funds(strategy, withdraw_amount)) {
-            // Withdraw from the yield source
             return withdraw_from_yield_source(withdraw_amount, strategy);
         };
 
-        //  no yield source or not enough funds, return zero
-        return fungible_asset::zero(strategy::shares_metadata(strategy.base_strategy))
+        fungible_asset::zero(strategy::shares_metadata(strategy.base_strategy))
     }
 
-    public fun vault(strategy: Object<ExampleStrategy>): Object<Vault> acquires ExampleStrategy {
-        let strategy = borrow_global<ExampleStrategy>(object::object_address(&strategy));
+    // Harvest the yield generated by the strategy, convert it into shares, and reinvest it back into the strategy
+    public entry fun harvest(
+        manager: &signer
+    ) acquires ExampleStrategy {
+        let strategy_address = strategy_address();
+        let strategy = borrow_global<ExampleStrategy>(strategy_address);
+
+        // Only the manager or authorized account should be able to harvest
+        let manager_address = signer::address_of(manager);
+        assert!(is_authorized_manager(manager_address, strategy_address), 0);
+
+        // Collect yield from the deployed assets
+        let yield_asset = collect_yield(strategy);
+
+        // Convert the yield into the base asset if necessary
+        let base_asset = convert_yield_to_base(yield_asset);
+
+        // Reinvest the base asset into the strategy to generate more yield
+        reinvest(base_asset, strategy);
+    }
+
+    public fun vault(): Object<Vault> acquires ExampleStrategy {
+        let strategy = borrow_global<ExampleStrategy>(strategy_address());
         strategy.vault
     }
 
@@ -132,7 +143,7 @@ module example_strategy::example_strategy {
     }
 
     public fun version(): vector<u8> {
-        b"0.0.2"
+        b"0.0.3"
     }
 
     fun deploy_to_yield_source(asset: FungibleAsset) {
@@ -140,13 +151,41 @@ module example_strategy::example_strategy {
         abort 0
     }
 
-    fun has_sufficient_funds(_strategy: &ExampleStrategy, _amount: u64): bool {
+    fun has_sufficient_funds(strategy: &ExampleStrategy, amount: u64): bool {
         // Implement logic to check if the strategy has sufficient funds to cover the withdrawal
         false
     }
 
-    fun withdraw_from_yield_source(_amount: u64, strategy: &ExampleStrategy): FungibleAsset {
+    fun withdraw_from_yield_source(amount: u64, strategy: &ExampleStrategy): FungibleAsset {
         // Implement logic to withdraw assets from the yield source
         fungible_asset::zero(strategy::shares_metadata(strategy.base_strategy))
+    }
+
+    fun collect_yield(strategy: &ExampleStrategy): FungibleAsset {
+        // Implement the logic to collect yield from the deployed assets
+        fungible_asset::zero(strategy::shares_metadata(strategy.base_strategy))
+    }
+
+    fun convert_yield_to_base(yield_asset: FungibleAsset): FungibleAsset {
+        // Implement the logic to convert the yield into the base asset
+        yield_asset
+    }
+
+    fun reinvest(base_asset: FungibleAsset, strategy: &ExampleStrategy) {
+        // Implement the logic to reinvest the base asset back into the strategy
+        deploy_to_yield_source(base_asset);
+    }
+
+    fun is_authorized_manager(manager_address: address, strategy_address: address): bool {
+        // Implement logic to check if the caller is an authorized manager for the strategy
+        true
+    }
+
+    fun strategy_address(): address {
+        account::create_resource_address(&@example_strategy, SEED_STRATEGY)
+    }
+
+    fun strategy_signer(): signer acquires StrategyCapability {
+        account::create_signer_with_capability(&borrow_global<StrategyCapability>(strategy_address()).strategy_cap)
     }
 }
