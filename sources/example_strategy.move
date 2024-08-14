@@ -15,6 +15,8 @@ module example_strategy::example_strategy {
         strategy_cap: SignerCapability,
     }
 
+    // The strategy struct stores the vault and the base strategy
+    // it could also be used to store other strategy info or config like the yield source addresses etc
     struct ExampleStrategy has key {
         vault: Object<Vault>,
         base_strategy: Object<BaseStrategy>,
@@ -182,6 +184,7 @@ module example_strategy::example_strategy {
     }
 
     fun strategy_address(): address {
+        // @example_strategy would be replaced with the actual address of the manager or something else in a real implementation
         account::create_resource_address(&@example_strategy, SEED_STRATEGY)
     }
 

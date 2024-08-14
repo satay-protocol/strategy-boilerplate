@@ -1,17 +1,10 @@
 module satay::vault {
-    use std::option::{Self, Option};
-    use std::signer;
-    use std::string::utf8;
-    use aptos_std::math64;
-    use aptos_std::simple_map::{Self, SimpleMap};
-    use aptos_framework::event::emit;
-    use aptos_framework::fungible_asset::{Self, FungibleAsset, FungibleStore, Metadata};
+    use std::option::Option;
+    use aptos_std::simple_map::SimpleMap;
+    use aptos_framework::fungible_asset::{FungibleAsset, FungibleStore, Metadata};
     use aptos_framework::object::{Self, ConstructorRef, ExtendRef, Object, ObjectGroup};
 
-
-    use satay::strategy;
     use satay::strategy::{BaseStrategy, StrategyState};
-
 
     #[resource_group_member(group = ObjectGroup)]
     struct Vault has key {

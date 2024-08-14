@@ -1,15 +1,7 @@
 module satay::strategy {
-    use std::option;
-    use std::string::utf8;
-    use aptos_std::math64;
-    use aptos_std::type_info;
     use aptos_std::type_info::TypeInfo;
-    use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::{FungibleAsset, FungibleStore, Metadata};
-    use aptos_framework::object;
-    use aptos_framework::object::{ConstructorRef, ExtendRef, Object, ObjectGroup};
-    use aptos_framework::timestamp;
-
+    use aptos_framework::object::{Self, ConstructorRef, ExtendRef, Object, ObjectGroup};
 
     #[resource_group_member(group = ObjectGroup)]
     struct BaseStrategy has key {
