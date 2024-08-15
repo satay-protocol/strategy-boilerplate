@@ -64,14 +64,6 @@ module satay::strategy {
         abort 0
     }
 
-    public(friend) fun new_state(): StrategyState {
-        abort 0
-    }
-
-    public(friend) fun destroy_state(state: StrategyState) {
-       abort 0
-    }
-
     public fun debt_limit(state: &StrategyState): u64 {
         abort 0
     }
@@ -84,62 +76,7 @@ module satay::strategy {
         abort 0
     }
 
-    public(friend) fun set_debt_limit(state: &mut StrategyState, debt_limit: u64) {
-        abort 0
-    }
-
-    fun create_shares_asset(
-        strategy_signer: &signer,
-        base_asset: Object<Metadata>,
-        witness_type: &TypeInfo
-    ): Object<Metadata> {
-        abort 0
-    }
-
-    fun create_internal(
-        constructor_ref: &ConstructorRef,
-        base_metadata: Object<Metadata>,
-        shares_metadata: Object<Metadata>,
-        witness_type: TypeInfo
-    ): (BaseStrategy, BaseStrategyController) {
-        abort 0
-    }
-
-    fun issue_internal(
-        strategy: Object<BaseStrategy>,
-        asset: &FungibleAsset
-    ): FungibleAsset {
-       abort 0
-    }
-
-    fun redeem_internal(
-        strategy: Object<BaseStrategy>,
-        asset: FungibleAsset
-    ): u64 {
-        abort 0
-    }
-
     public fun base_metadata(strategy: Object<BaseStrategy>): Object<Metadata> {
-        abort 0
-    }
-
-    fun is_valid_witness<T>(strategy: Object<BaseStrategy>): bool {
-        abort 0
-    }
-
-    inline fun borrow_strategy(strategy: &Object<BaseStrategy>): &BaseStrategy {
-        borrow_global<BaseStrategy>(object::object_address(strategy))
-    }
-
-    inline fun borrow_strategy_mut(strategy: &Object<BaseStrategy>): &mut BaseStrategy {
-        borrow_global_mut<BaseStrategy>(object::object_address(strategy))
-    }
-
-    inline fun borrow_strategy_controller(strategy: &Object<BaseStrategy>): &BaseStrategyController {
-        borrow_global<BaseStrategyController>(object::object_address(strategy))
-    }
-
-    public fun strategy_address(strategy: Object<BaseStrategy>): address {
         abort 0
     }
 
@@ -173,11 +110,6 @@ module satay::strategy {
 
     #[view]
     public fun shares_to_amount(strategy: Object<BaseStrategy>, shares: u64): u64 {
-        abort 0
-    }
-
-    #[view]
-    public fun witness_type(strategy: Object<BaseStrategy>): TypeInfo {
         abort 0
     }
 }
