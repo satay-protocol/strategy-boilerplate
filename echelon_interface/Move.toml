@@ -1,10 +1,10 @@
 [package]
-name = "EchelonUSDT"
+name = "Lending"
 version = "1.0.0"
 authors = []
 
 [addresses]
-echelon_usdt = "_"
+lending = "0x3dc5ef372359b6ab006bb517a8df5ca1b2c8ef35ce1ff45f7db8a44e2e43e856"
 
 [dev-addresses]
 
@@ -12,12 +12,5 @@ echelon_usdt = "_"
 git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "mainnet"
 subdir = "aptos-move/framework/aptos-framework"
-
-[dependencies.Lending]
-local = "./echelon_interface"
-
-[dependencies.Satay]
-local = "../../satay"
-
 
 [dev-dependencies]
