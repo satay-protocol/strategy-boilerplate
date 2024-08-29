@@ -3,7 +3,7 @@ module echelon_usdt::echelon_usdt {
     use std::signer;
     use aptos_std::math64;
     use aptos_framework::coin;
-    use aptos_framework::fungible_asset::{Self, FungibleAsset, Metadata};
+    use aptos_framework::fungible_asset::{Self, FungibleAsset};
     use aptos_framework::object::{Self, ExtendRef, Object};
     use aptos_framework::primary_fungible_store;
 
@@ -32,20 +32,14 @@ module echelon_usdt::echelon_usdt {
     const EINVALID_ASSET_METADATA: u64 = 1;
 
     // Initialize the strategy with the vault and the base asset
-    public entry fun initialize(
-        manager: &signer,
-        vault: Object<Vault>,
-        asset: Object<Metadata>,
-        market: Object<Market>
-    ) {
+    public entry fun initialize(manager: &signer, vault: Object<Vault>, market: Object<Market>) {
         let constructor_ref = strategy::create_impl_object(SEED_STRATEGY);
         let transfer_ref = object::generate_transfer_ref(&constructor_ref);
         object::disable_ungated_transfer(&transfer_ref);
 
-        assert!(vault::base_metadata(vault) == asset, EINVALID_ASSET_METADATA);
-
+        let asset_metadata = vault::base_metadata(vault);
         let strategy_signer = object::generate_signer(&constructor_ref);
-        let base_strategy = strategy::create<EchelonUSDT>(manager, asset, EchelonUSDT {});
+        let base_strategy = strategy::create<EchelonUSDT>(manager, asset_metadata, EchelonUSDT {});
 
         let strategy = EchelonUSDTStrategy { vault, market, base_strategy };
         let controller = EchelonUSDTStrategyController { extend_ref: object::generate_extend_ref(&constructor_ref) };
@@ -69,22 +63,38 @@ module echelon_usdt::echelon_usdt {
 
     public fun deposit_asset<CoinType>(base_asset: FungibleAsset): FungibleAsset acquires EchelonUSDTStrategy {
         let strategy = borrow_self();
-        let shares_asset = strategy::issue(strategy.base_strategy, &base_asset, &EchelonUSDT {});
-        primary_fungible_store::deposit(
-            @0xa97226fc785cb0c2e2e1dd795e1edceddc1e5b349b3c12152c7979c030c679f7,
-            base_asset
-        );
 
-        // let signer = strategy::get_strategy_signer(strategy.base_strategy, &EchelonUSDT {});
-        //
-        // let coin = strategy::unwrap_asset<EchelonUSDT, CoinType>(
-        //     strategy.base_strategy,
-        //     base_asset,
-        //     &EchelonUSDT {}
-        // );
-        // echelon::supply(&signer, strategy.market, coin);
+        let witness = &EchelonUSDT {};
+        let base_strategy = strategy.base_strategy;
+
+        let signer = strategy::get_strategy_signer(base_strategy, witness);
+        let shares_asset = strategy::issue(base_strategy, &base_asset, witness);
+        let coin = strategy::unwrap_asset<EchelonUSDT, CoinType>(base_strategy, base_asset, witness);
+        echelon::supply(&signer, strategy.market, coin);
 
         shares_asset
+    }
+
+    fun harvest<CoinType>(account: &signer, strategy: &mut EchelonUSDTStrategy): u64 acquires EchelonUSDTStrategy {
+        let account_address = signer::address_of(account);
+        // assert!(strategy::is_manager(account_address), EINVALID_ASSET_METADATA);
+
+        let witness = &EchelonUSDT {};
+        let market = strategy.market;
+        let base_strategy = strategy.base_strategy;
+        let total_asset = strategy::total_asset(strategy.base_strategy);
+
+        let withdrawable = echelon::account_withdrawable_coins(account_address, market);
+        if (withdrawable == 0) return 0;
+
+        let (profit, loss) = (0, 0);
+        if (total_asset > withdrawable) {
+            let redeemable = total_asset - withdrawable;
+        };
+
+        let signer = strategy::get_strategy_signer(base_strategy, witness);
+
+        return 0
     }
 
     public fun vault_withdrawal<CoinType>(request: &mut WithdrawalRequest): u64 acquires EchelonUSDTStrategy {
